@@ -9,10 +9,19 @@ class InvalidLayoutError(Exception):
 
 
 class QuantumTile:
-    def __init__(self, pool: TilePool):
+    def __init__(self, pos: tuple[int, int], pool: TilePool):
         self.tile_pool = pool
+        self.pos = pos
         self._edges = self.initialize()
         self.neighbors: typing.List[typing.Optional[QuantumTile]] = [None] * 4
+
+    @property
+    def x(self):
+        return self.pos[0]
+
+    @property
+    def y(self):
+        return self.pos[1]
 
     def initialize(self) -> list[set, ...]:
         self._edges = [{e for e in edges} for edges in self.tile_pool.get_initial_edges()]
@@ -37,6 +46,10 @@ class QuantumTile:
 
     def set_random(self):
         tile = self.tile_pool.get_random(self.edges)
+        return self.set_tile(tile)
+
+    def set_closest(self, value: tuple[int, int, int]):
+        tile = self.tile_pool.get_closest(self.edges, value)
         return self.set_tile(tile)
 
     def set_tile(self, tile: Tile) -> set['QuantumTile']:

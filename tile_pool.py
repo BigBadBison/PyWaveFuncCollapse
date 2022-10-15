@@ -27,8 +27,12 @@ class TilePool:
         self.filter_edges.cache_clear()
         self.tiles += tiles
 
-    def get_random(self, edges):
+    def get_random(self, edges: tuple[tuple[int, ...], ...]) -> Tile:
         return random.choice([i for i in self.filter_pool(edges)])
+
+    def get_closest(self, edges: tuple[tuple[int, ...], ...], value: tuple[int, int, int]) -> Tile:
+        tiles = self.filter_pool(edges)
+        return min((tile.get_difference(value), tile) for tile in tiles)[1]
 
     def get_initial_edges(self) -> tuple[tuple[int, ...], ...]:
         return self.filter_edges(tuple(tuple(e for e in self.generator.edge_types) for _ in Direction))

@@ -16,12 +16,19 @@ class Direction(enum.IntEnum):
 
 
 class Tile:
-    def __init__(self, im: Image, edges: typing.Iterable[int]):
+    def __init__(self, im: Image, edges: typing.Iterable[int], value=(0, 0, 0)):
         self.im = im
+        self.value = value
         self.edges = tuple(edges)
 
     def show(self):
         self.im.show()
 
+    def get_difference(self, value: tuple[int, int, int]) -> int:
+        return sum(abs(i - j) for i, j in zip(self.value, value))
+
     def __repr__(self):
         return f'<Tile {self.edges}>'
+
+    def __lt__(self, other):
+        return self.value < other.value

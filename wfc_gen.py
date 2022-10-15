@@ -37,14 +37,14 @@ class WFCConverter:
         img.show()
 
     def solve_image(self, src) -> None:
-        self.q_grid.solve_min()
-    #
-    # def show_src(self) -> None:
-    #     Image.open(self.src).show()
-    #
-    # def show_blocked(self) -> None:
-    #     self.blocked_img.resize(self.img_pixels[0], self.img_pixels[1]).show()
-    #
+        grid = self.q_grid.solve_image(src)
+        w, h = grid[0][0].im.size
+        size = (w * len(grid[0]), h * len(grid))
+        img = Image.new('RGB', size)
+        for y in range(len(grid)):
+            for x in range(len(grid[0])):
+                img.paste(im=grid[y][x].im, box=(x * w, y * h))
+        img.show()
 
     def show(self) -> None:
         pass
@@ -52,18 +52,8 @@ class WFCConverter:
 
 if __name__ == '__main__':
     tile_pixels = 20
-    size = (300, 420)
-    print('creating converter...')
+    size = (800, 533)
     wfc_converter = WFCConverter(size)
-    print('loading...')
-    wfc_converter.load_tiles('img/plotter_wfc_1_2_color.png', tile_pixels)
-    print(wfc_converter.q_grid.pool.get_missing_combinations())
-    print('solving...')
-    wfc_converter.solve_random()
-
-    print('solved!')
+    wfc_converter.load_tiles(r'img/plotter_wfc_1_2_color.png', tile_pixels)
+    wfc_converter.solve_image(r'img/trees_bwr.jpg')
     wfc_converter.show()
-    print(wfc_converter.q_grid.pool.get_tiles_with_edge_in_direction.cache_info())
-    print(wfc_converter.q_grid.pool.get_tiles_with_edges_in_direction.cache_info())
-    print(wfc_converter.q_grid.pool.filter_pool.cache_info())
-    print(wfc_converter.q_grid.pool.filter_edges.cache_info())

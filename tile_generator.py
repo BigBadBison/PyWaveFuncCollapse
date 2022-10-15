@@ -1,3 +1,4 @@
+import numpy as np
 from PIL import Image, ImageOps, ImageChops
 
 from tile import Tile
@@ -70,4 +71,6 @@ class TileGenerator:
             if val not in self._edge_type_vals:
                 self._edge_type_vals.append(val)
             edges.append(self._edge_type_vals.index(val))
-        return Tile(image, edges)
+        avg_color_per_row = np.average(image, axis=0)
+        avg_color = np.average(avg_color_per_row, axis=0)
+        return Tile(image, edges, tuple(avg_color[:-1]))

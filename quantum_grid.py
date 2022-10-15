@@ -1,5 +1,7 @@
 import random
 
+from PIL import Image
+
 from quantum_tile import QuantumTile, InvalidLayoutError
 from tile import Direction
 from tile_pool import TilePool
@@ -16,7 +18,7 @@ class QuantumGrid:
         for y in range(self.size[1]):
             q_grid.append([])
             for x in range(self.size[0]):
-                qt = QuantumTile(self.pool)
+                qt = QuantumTile((x, y), self.pool)
                 q_grid[y].append(qt)
                 if y > 0:
                     qt.set_neighbor(Direction.N, q_grid[y - 1][x])
@@ -46,11 +48,8 @@ class QuantumGrid:
         tile_seq = [tile for tile in self]
         random.seed(seed)
         random.shuffle(tile_seq)
-        i = 0
         while tile_seq:
-
             tile = tile_seq.pop()
-            i += 1
             if tile.assigned:
                 continue
             try:
@@ -61,30 +60,38 @@ class QuantumGrid:
                     dirty_tile.update_edges()
                     dirty_tiles.update(dirty_tile.get_dirty_neighbors())
             except InvalidLayoutError:
-                print('invalid layout')
+                raise
+        return self.create_grid()
+
+    def solve_image(self, src, seed=1):
+        img = Image.open(src)
+        img = img.resize(self.size)
+        if not self.pool.is_complete():
+            missing = self.pool.get_missing_combinations()
+            print(f'WARNING: {len(missing)} edge combinations missing, invalid layout possible!')
+        self._initialize_tiles()
+        dirty_tiles = set()
+        tile_seq = [tile for tile in self]
+        random.seed(seed)
+        random.shuffle(tile_seq)
+        i = 0
+        while tile_seq:
+            i += 1
+            tile = tile_seq.pop()
+            if tile.assigned:
+                continue
+            try:
+                dirty = tile.set_closest(img.getpixel(tile.pos))
+                dirty_tiles.update(dirty)
+                while dirty_tiles:
+                    dirty_tile = dirty_tiles.pop()
+                    dirty_tile.update_edges()
+                    dirty_tiles.update(dirty_tile.get_dirty_neighbors())
+            except InvalidLayoutError:
                 raise
             if not i % 10000:
                 print(f'i: {i}')
         return self.create_grid()
-
-    def solve_min(self):
-        tile_seq = [cell for row in self.quantum_grid for cell in row]
-        random.shuffle(tile_seq)
-        i = 0
-        while tile_seq:
-            # NOT POPPING FROM TILE_SEQ, MIN IS VERY SLOW. TRACK MIN WHILE UPDATING?
-            tile = min((i for i in tile_seq if i.valid_tile_count > 1), key=lambda x: x.valid_tile_count)
-            i += 1
-            if not i % 1000:
-                print(f'i: {i}, len: {len(tile.valid_tile_count)}')
-            if tile.assigned:
-                continue
-            try:
-                tile.set_tile_from_pool()
-            except RecursionError:
-                print('recursion error')
-            except InvalidLayoutError:
-                print('invalid layout')
 
     def _initialize_tiles(self):
         for tile in self:
