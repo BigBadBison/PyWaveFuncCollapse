@@ -1,110 +1,100 @@
+import itertools
+import math
 import random
 import typing
 import functools
 
-from PIL import Image, ImageOps, ImageChops
+from PIL import Image
 
 from tile import Tile, Direction
+from tile_generator import TileGenerator
 
 
 class TilePool:
     def __init__(self):
-        self.tiles = []
-        self.edge_pools: list[list[[Tile]]] = [[[] for _ in Tile.edge_types] for _ in Direction]
+        self.generator = TileGenerator()
+        self.tiles: list[Tile] = []
 
-    def load(self, src, size):
-        tiles = PoolGenerator.load(src, size)
+    def load(self, src, size, variants=True, duplicates=True):
+        tiles = self.generator.load(src, size, variants, duplicates)
         self.add_tiles(tiles)
 
     def add_tiles(self, tiles: typing.List[Tile]):
-        for tile in tiles:
-            for direction, edge_type in enumerate(tile.edges):
-                self.edge_pools[direction][edge_type].append(tile)
-            self.tiles.append(tile)
+        self.get_tiles_with_edge_in_direction.cache_clear()
+        self.get_tiles_with_edges_in_direction.cache_clear()
+        self.filter_pool.cache_clear()
+        self.filter_edges.cache_clear()
+        self.tiles += tiles
 
     def get_random(self, edges):
-        return random.choice(self.get_valid_tiles(edges))
+        return random.choice([i for i in self.filter_pool(edges)])
 
-    def get_valid_tiles(self, edges):
-        return self.filter_pool(*edges)
-
-    def get_valid_edges(self, edges):
-        return self.filter_edges(*edges)
+    def get_initial_edges(self) -> tuple[tuple[int, ...], ...]:
+        return self.filter_edges(tuple(tuple(e for e in self.generator.edge_types) for _ in Direction))
 
     @functools.lru_cache(maxsize=None)
-    def filter_pool(self, n, e, s, w) -> tuple[Tile, ...]:
-        new_pool = set(self._filter_edge(0, n))
-        new_pool = new_pool.intersection(self._filter_edge(1, e))
-        new_pool = new_pool.intersection(self._filter_edge(2, s))
-        new_pool = new_pool.intersection(self._filter_edge(3, w))
-        return tuple(new_pool)
+    def get_tiles_with_edge_in_direction(self, d: Direction, edge_type: int) -> set[Tile]:
+        return {tile for tile in self.tiles if tile.edges[d] == edge_type}
 
     @functools.lru_cache(maxsize=None)
-    def _filter_edge(self, i, edges) -> tuple[Tile, ...]:
-        pool = set()
-        for edge in edges:
-            pool.update(self.edge_pools[i][edge])
-        return tuple(pool)
+    def get_tiles_with_edges_in_direction(self, d: Direction, edge_types: tuple[int]) -> set[Tile]:
+        tiles = set()
+        for edge_type in edge_types:
+            tiles = tiles.union(self.get_tiles_with_edge_in_direction(d, edge_type))
+        return tiles
 
     @functools.lru_cache(maxsize=None)
-    def filter_edges(self, n, e, s, w):
-        pool = self.filter_pool(n, e, s, w)
-        edges = [set() for _ in range(4)]
+    def filter_pool(self, edges: tuple[tuple[int, ...], ...]) -> set[
+            Tile]:
+        tiles = {t for t in self.tiles}
+        for d, edge_types in zip(Direction, edges):
+            tiles = tiles.intersection(self.get_tiles_with_edges_in_direction(d, edge_types))
+        return tiles
+
+    @functools.lru_cache(maxsize=None)
+    def filter_edges(self, edges: tuple[tuple[int, ...], ...]) -> tuple[tuple[int, ...], ...]:
+        pool = self.filter_pool(edges)
+        edges = [set() for _ in Direction]
         for tile in pool:
             for i, edge in enumerate(tile.edges):
                 edges[i].add(edge)
         return tuple(tuple(edge) for edge in edges)
 
+    def is_complete(self) -> bool:
+        return len(self.get_missing_combinations()) == 0
+
+    def get_missing_combinations(self):
+        missing = []
+        edge_types = [(e,) for e in self.generator.edge_types]
+        for edges in itertools.product(edge_types, repeat=len(Direction)):
+            if len(self.filter_pool(edges)) == 0:
+                missing.append(edges)
+        return missing
+
+    def show(self) -> None:
+        w = len(self) * self.tiles[0].im.width
+        h = self.tiles[0].im.height
+        img = Image.new('RGB', (w, h))
+        x = 0
+        for tile in self.tiles:
+            img.paste(im=tile.im, box=(x, 0))
+            x += tile.im.width
+        img.show()
+
+    def show_square(self) -> None:
+        w = int(math.sqrt(len(self))) * self.tiles[0].im.width
+        h = w + self.tiles[0].im.width
+        img = Image.new('RGB', (w, h))
+        i = 0
+        for y in range(0, h, self.tiles[0].im.height):
+            for x in range(0, w, self.tiles[0].im.width):
+                try:
+                    img.paste(im=self.tiles[i].im, box=(x, y))
+                except IndexError:
+                    img.show()
+                    return
+                i += 1
+        img.show()
+
     def __len__(self):
         return len(self.tiles)
-
-
-class PoolGenerator:
-    @staticmethod
-    def load(src, size):
-        im = Image.open(src).convert('L')
-        images = PoolGenerator.split_image(im, size)
-        images = PoolGenerator.create_variants(images)
-        tiles = [Tile(im) for im in images]
-        return tiles
-
-    @staticmethod
-    def split_image(im, size):
-        tiles = []
-        for x in range(0, im.width, size):
-            for y in range(0, im.height, size):
-                box = (x, y, x + size, y + size)
-                tile = im.crop(box)
-                tiles.append(tile)
-        return tiles
-
-    @staticmethod
-    def create_variants(tiles_in):
-        tiles = list(tiles_in) + [ImageOps.flip(tile) for tile in list(tiles_in)]
-        tiles_out = list(tiles)
-        for tile in tiles:
-            for i in range(1, 4):
-                new_tile = tile.rotate(i * 90)
-                tiles_out.append(new_tile)
-        tiles_out = PoolGenerator.remove_duplicates(tiles_out, 7500)
-        return tiles_out
-
-    @staticmethod
-    def remove_duplicates(tiles_in, tol):
-        tiles_out = []
-        for new_tile in tiles_in:
-            for existing_tile in tiles_out:
-                diff = ImageChops.difference(new_tile, existing_tile)
-                sum_diff = sum(diff.getdata())
-                if sum_diff <= tol:
-                    break
-            else:
-                tiles_out.append(new_tile)
-        return tiles_out
-
-# def show_tiles(tiles):
-#     count = len(tiles)
-#     im = Image.new('L', (count * tile_pixels, tile_pixels))
-#     for i in range(count):
-#         im.paste(tiles[i].im, (i * tile_pixels, 0))
-#     im.show()

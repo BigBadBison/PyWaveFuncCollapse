@@ -1,8 +1,7 @@
 import enum
 import typing
-import functools
 
-from PIL import Image, ImageOps, ImageChops
+from PIL import Image
 
 
 class Direction(enum.IntEnum):
@@ -17,20 +16,12 @@ class Direction(enum.IntEnum):
 
 
 class Tile:
-    edge_types = (0, 1)
-
-    def __init__(self, im):
+    def __init__(self, im: Image, edges: typing.Iterable[int]):
         self.im = im
-        self.edges = self._set_edges()
+        self.edges = tuple(edges)
 
-    def _set_edges(self):
-        # todo: this goes in pool generator
-        edges = []
-        midpoint = self.im.width * 0.5
-        for e in ((midpoint, 2), (self.im.width - 2, midpoint), (midpoint, self.im.width - 2), (2, midpoint)):
-            val = self.im.getpixel(e)
-            edges.append(int(bool(val)))
-        return tuple(edges)
+    def show(self):
+        self.im.show()
 
     def __repr__(self):
         return f'<Tile {self.edges}>'

@@ -29,6 +29,7 @@ class QuantumGrid:
         for row in self.quantum_grid:
             grid.append([])
             for cell in row:
+                # print(cell.edges)
                 tile = cell.tile_pool.get_random(cell.edges)
                 grid[-1].append(tile)
         return grid
@@ -37,11 +38,13 @@ class QuantumGrid:
         self.pool.load(src, size)
 
     def solve_random(self, seed=1):
-        random.seed(seed)
-        # print({d: p for d, p in zip(Direction, self.pool.edge_pools)})
+        if not self.pool.is_complete():
+            missing = self.pool.get_missing_combinations()
+            print(f'WARNING: {len(missing)} edge combinations missing, invalid layout possible!')
         self._initialize_tiles()
         dirty_tiles = set()
         tile_seq = [tile for tile in self]
+        random.seed(seed)
         random.shuffle(tile_seq)
         i = 0
         while tile_seq:

@@ -3,7 +3,7 @@ import os.path
 from PIL import Image
 
 from tile import Tile
-from tile_pool import PoolGenerator
+from tile_generator import TileGenerator
 
 singles = [
     ['test_cross.png', ((0, 0, 0, 0), )],
@@ -23,7 +23,7 @@ def test_edges():
 
 def test_variants():
     for filename, edges in singles:
-        tiles = PoolGenerator.load(os.path.join('img', filename), 20)
+        tiles = TileGenerator.load(os.path.join('img', filename), 20)
         assert len(tiles) == len(edges)
         print(set([tile.edges for tile in tiles]), set(edges))
         assert set([tile.edges for tile in tiles]) == set(edges)

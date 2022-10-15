@@ -1,6 +1,4 @@
-import enum
 import typing
-import random
 
 from tile import Tile, Direction
 from tile_pool import TilePool
@@ -16,8 +14,8 @@ class QuantumTile:
         self._edges = self.initialize()
         self.neighbors: typing.List[typing.Optional[QuantumTile]] = [None] * 4
 
-    def initialize(self):
-        self._edges = [{0, 1} for _ in Direction]
+    def initialize(self) -> list[set, ...]:
+        self._edges = [{e for e in edges} for edges in self.tile_pool.get_initial_edges()]
         return self._edges
 
     @property
@@ -30,7 +28,7 @@ class QuantumTile:
 
     @property
     def valid_tile_count(self):
-        return len(self.tile_pool.get_valid_tiles(self.edges))
+        return len(self.tile_pool.filter_pool(self.edges))
 
     def set_neighbor(self, direction, neighbor: 'QuantumTile'):
         self.neighbors[direction] = neighbor
@@ -70,24 +68,14 @@ class QuantumTile:
         self._filter_edges()
 
     def _filter_edges(self):
-        filtered_edges = self.tile_pool.get_valid_edges(self.edges)
+        edges = self.edges
+        filtered_edges = self.tile_pool.filter_edges(self.edges)
         # print(f'filtered edges (pool): {filtered_edges}')
         for d in Direction:
             self._edges[d] = self._edges[d].intersection(filtered_edges[d])
         if any(len(e) == 0 for e in self._edges):
+            print(edges, self._edges)
             raise InvalidLayoutError
 
     def __repr__(self):
         return f'<QuantumTile {self.valid_tile_count}>'
-
-    # def update_edge(self, direction, new_edges):
-    #     if self.edges[direction] == new_edges:
-    #         return
-    #     old_edges = self.edges
-    #     edge_pool = list(self.edges)
-    #     edge_pool[direction] = new_edges
-    #     self.edges = tuple(edge_pool)
-    #     self.update_pool()
-    #     for direction, old, new in zip(range(4), old_edges, self.edges):
-    #         if not old == new:
-    #             self.update_neighbor(direction)

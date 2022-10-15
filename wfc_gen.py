@@ -30,7 +30,7 @@ class WFCConverter:
         grid = self.q_grid.solve_random()
         w, h = grid[0][0].im.size
         size = (w * len(grid[0]), h * len(grid))
-        img = Image.new('L', size)
+        img = Image.new('RGB', size)
         for y in range(len(grid)):
             for x in range(len(grid[0])):
                 img.paste(im=grid[y][x].im, box=(x * w, y * h))
@@ -51,18 +51,19 @@ class WFCConverter:
 
 
 if __name__ == '__main__':
-    image_src = 'img/dog-nose.jpg'
     tile_pixels = 20
-    size = (297, 420)
+    size = (300, 420)
     print('creating converter...')
     wfc_converter = WFCConverter(size)
     print('loading...')
-    wfc_converter.load_tiles('img/plotter_wfc_1.png', tile_pixels)
+    wfc_converter.load_tiles('img/plotter_wfc_1_2_color.png', tile_pixels)
+    print(wfc_converter.q_grid.pool.get_missing_combinations())
     print('solving...')
     wfc_converter.solve_random()
 
     print('solved!')
     wfc_converter.show()
+    print(wfc_converter.q_grid.pool.get_tiles_with_edge_in_direction.cache_info())
+    print(wfc_converter.q_grid.pool.get_tiles_with_edges_in_direction.cache_info())
     print(wfc_converter.q_grid.pool.filter_pool.cache_info())
-    print(wfc_converter.q_grid.pool._filter_edge.cache_info())
     print(wfc_converter.q_grid.pool.filter_edges.cache_info())
