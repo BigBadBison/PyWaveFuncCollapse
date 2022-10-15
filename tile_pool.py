@@ -16,7 +16,8 @@ class TilePool:
         self.tiles: list[Tile] = []
 
     def load(self, src, size, variants=True, duplicates=True):
-        tiles = self.generator.load(src, size, variants, duplicates)
+        tiles = self.generator.load(src, size, allow_mirror=variants, allow_rotate=variants,
+                                    allow_duplicates=duplicates)
         self.add_tiles(tiles)
 
     def add_tiles(self, tiles: typing.List[Tile]):
@@ -45,7 +46,7 @@ class TilePool:
 
     @functools.lru_cache(maxsize=None)
     def filter_pool(self, edges: tuple[tuple[int, ...], ...]) -> set[
-            Tile]:
+        Tile]:
         tiles = {t for t in self.tiles}
         for d, edge_types in zip(Direction, edges):
             tiles = tiles.intersection(self.get_tiles_with_edges_in_direction(d, edge_types))

@@ -15,12 +15,14 @@ class TileGenerator:
     def edge_count(self) -> int:
         return len(self._edge_type_vals)
 
-    def load(self, src, size, variants=True, duplicates=True) -> list[Tile]:
+    def load(self, src, size, allow_rotate=True, allow_mirror=True, allow_duplicates=True) -> list[Tile]:
         im = Image.open(src)
         images = self._split_image(im, size)
-        if variants:
-            images = self._create_variants(images)
-        if not duplicates:
+        if allow_rotate:
+            images = self._create_rotations(images)
+        if allow_mirror:
+            images = self._create_mirrors(images)
+        if not allow_duplicates:
             images = self._remove_duplicates(images, 7500)
         tiles = self._create_tiles(images)
         return tiles
@@ -34,10 +36,12 @@ class TileGenerator:
                 sub_images.append(image)
         return sub_images
 
-    def _create_variants(self, images: list[Image]) -> list[Image]:
-        img_in = list(images) + [ImageOps.flip(tile) for tile in list(images)]
-        img_out = list(img_in)
-        for im in img_in:
+    def _create_mirrors(self, images: list[Image]) -> list[Image]:
+        return list(images) + [ImageOps.flip(tile) for tile in list(images)]
+
+    def _create_rotations(self, images: list[Image]) -> list[Image]:
+        img_out = list(images)
+        for im in images:
             for i in range(1, 4):
                 im = im.rotate(i * 90)
                 img_out.append(im)
@@ -47,7 +51,7 @@ class TileGenerator:
         img_out = []
         for new_img in images:
             for existing_img in img_out:
-                diff = ImageChops.difference(new_img, existing_img)
+                diff = ImageChops.difference(new_img, existing_img).convert('L')
                 sum_diff = sum(diff.getdata())
                 if sum_diff <= tol:
                     break
