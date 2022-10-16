@@ -15,6 +15,13 @@ class TilePool:
         self.generator = TileGenerator()
         self.tiles: list[Tile] = []
 
+    @property
+    def tile_size(self):
+        try:
+            return self.tiles[0].im.size
+        except IndexError:
+            return 0
+
     def load(self, src, size, variants=True, duplicates=True):
         tiles = self.generator.load(src, size, allow_mirror=variants, allow_rotate=variants,
                                     allow_duplicates=duplicates)

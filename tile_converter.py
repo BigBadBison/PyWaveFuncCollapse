@@ -5,7 +5,7 @@ image_src = 'img/plotter_wfc_1.png'
 
 def pixellate(img: Image):
     img_small = img.resize((16, 16), resample=Image.BILINEAR)
-    result = img_small.resize(img.size, Image.NEAREST)
+    result = img_small.resize(img.max_size, Image.NEAREST)
     return result
 
 

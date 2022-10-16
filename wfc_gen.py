@@ -1,59 +1,57 @@
 from __future__ import annotations
 
+import numpy
 from PIL import Image
 
 from quantum_grid import QuantumGrid
+from tile import Tile
+from tile_pool import TilePool
 
 
 class WFCConverter:
     def __init__(self, max_tiles: [int, int]):
-        self.max_tiles = max_tiles
-        self.q_grid = QuantumGrid(self.max_tiles)
+        self._max_tiles = max_tiles
+        self.width, self.height = max_tiles
+        self.pool = TilePool()
+        self.grid: list[list[Tile]] = []
 
-    def _create_blocked_image(self, src):
-        img = Image.open(src).convert('L')
-        blocked_img = self.resize(img, self.max_tiles[0], self.max_tiles[1], maintain_aspect=True, resample=Image.BICUBIC)
-        return blocked_img
-
-    @staticmethod
-    def resize(img: Image.Image, width, height, maintain_aspect=True, resample=None):
-        if maintain_aspect:
-            ratio = min(width / img.width, height / img.height)
-            width = int(img.width * ratio)
-            height = int(img.height * ratio)
-        return img.resize((width, height), resample=resample)
+    @property
+    def size(self) -> tuple[int, int]:
+        return self.width, self.height
 
     def load_tiles(self, src: str, size: int):
-        self.q_grid.load(src, size)
+        self.pool.load(src, size)
 
     def solve_random(self) -> None:
-        grid = self.q_grid.solve_random()
-        w, h = grid[0][0].im.size
-        size = (w * len(grid[0]), h * len(grid))
-        img = Image.new('RGB', size)
-        for y in range(len(grid)):
-            for x in range(len(grid[0])):
-                img.paste(im=grid[y][x].im, box=(x * w, y * h))
-        img.show()
+        q_grid = QuantumGrid(self.pool, self.size)
+        self.grid = q_grid.solve_random()
 
     def solve_image(self, src) -> None:
-        grid = self.q_grid.solve_image(src)
-        w, h = grid[0][0].im.size
-        size = (w * len(grid[0]), h * len(grid))
-        img = Image.new('RGB', size)
-        for y in range(len(grid)):
-            for x in range(len(grid[0])):
-                img.paste(im=grid[y][x].im, box=(x * w, y * h))
-        img.show()
+        img = Image.open(src)
+        img = self.resize(img)
+        q_grid = QuantumGrid(self.pool, self.size)
+        self.grid = q_grid.solve_target(numpy.array(img.getdata()).tolist())
+
+    def resize(self, img: Image.Image):
+        ratio = min(self._max_tiles[0] / img.width, self._max_tiles[1] / img.height)
+        self.width = int(img.width * ratio)
+        self.height = int(img.height * ratio)
+        return img.resize((self.width, self.height))
 
     def show(self) -> None:
-        pass
+        w, h = self.pool.tile_size
+        size = (w * self.width, h * self.height)
+        img = Image.new('RGB', size)
+        for y in range(self.height):
+            for x in range(self.width):
+                img.paste(im=self.grid[y][x].im, box=(x * w, y * h))
+        img.show()
 
 
 if __name__ == '__main__':
     tile_pixels = 20
-    size = (800, 533)
-    wfc_converter = WFCConverter(size)
+    max_size = (800, 533)
+    wfc_converter = WFCConverter(max_size)
     wfc_converter.load_tiles(r'img/plotter_wfc_1_2_color.png', tile_pixels)
     wfc_converter.solve_image(r'img/trees_bwr.jpg')
     wfc_converter.show()

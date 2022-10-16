@@ -1,16 +1,17 @@
 import random
+from typing import Callable
 
 from PIL import Image
 
 from quantum_tile import QuantumTile, InvalidLayoutError
-from tile import Direction
+from tile import Direction, Tile
 from tile_pool import TilePool
 
 
 class QuantumGrid:
-    def __init__(self, size: tuple[int, int]):
+    def __init__(self, pool: TilePool, size: tuple[int, int]):
         self.size = size
-        self.pool = TilePool()
+        self.pool = pool
         self.quantum_grid = self._create_quantum_grid()
 
     def _create_quantum_grid(self) -> list[list[QuantumTile]]:
@@ -18,7 +19,7 @@ class QuantumGrid:
         for y in range(self.size[1]):
             q_grid.append([])
             for x in range(self.size[0]):
-                qt = QuantumTile((x, y), self.pool)
+                qt = QuantumTile((x, y), self.pool)  # set value here
                 q_grid[y].append(qt)
                 if y > 0:
                     qt.set_neighbor(Direction.N, q_grid[y - 1][x])
@@ -26,50 +27,26 @@ class QuantumGrid:
                     qt.set_neighbor(Direction.W, q_grid[y][x - 1])
         return q_grid
 
-    def create_grid(self):
+    def _create_tile_grid(self):
         grid = []
         for row in self.quantum_grid:
-            grid.append([])
-            for cell in row:
-                # print(cell.edges)
-                tile = cell.tile_pool.get_random(cell.edges)
-                grid[-1].append(tile)
+            grid.append([None for _ in row])
         return grid
 
-    def load(self, src: str, size: int):
-        self.pool.load(src, size)
+    def solve_random(self, seed=1) -> list[list[Tile]]:
+        return self.solve(lambda tile: tile.set_random(), seed)
 
-    def solve_random(self, seed=1):
-        if not self.pool.is_complete():
-            missing = self.pool.get_missing_combinations()
-            print(f'WARNING: {len(missing)} edge combinations missing, invalid layout possible!')
-        self._initialize_tiles()
-        dirty_tiles = set()
-        tile_seq = [tile for tile in self]
-        random.seed(seed)
-        random.shuffle(tile_seq)
-        while tile_seq:
-            tile = tile_seq.pop()
-            if tile.assigned:
-                continue
-            try:
-                dirty = tile.set_random()
-                dirty_tiles.update(dirty)
-                while dirty_tiles:
-                    dirty_tile = dirty_tiles.pop()
-                    dirty_tile.update_edges()
-                    dirty_tiles.update(dirty_tile.get_dirty_neighbors())
-            except InvalidLayoutError:
-                raise
-        return self.create_grid()
+    def solve_target(self, targets: list[list[tuple[int, int, int]]], seed=1) -> list[list[Tile]]:
+        self.set_targets(targets)
+        return self.solve(lambda tile: tile.set_closest(), seed)
 
-    def solve_image(self, src, seed=1):
-        img = Image.open(src)
-        img = img.resize(self.size)
-        if not self.pool.is_complete():
-            missing = self.pool.get_missing_combinations()
-            print(f'WARNING: {len(missing)} edge combinations missing, invalid layout possible!')
-        self._initialize_tiles()
+    def set_targets(self, targets: list[list[tuple[int, int, int]]]):
+        for q_tile, targ in zip(self, targets):
+            q_tile.value = targ
+
+    def solve(self, strategy: Callable, seed=1) -> list[list[Tile]]:
+        self._initialize()
+        grid = self._create_tile_grid()
         dirty_tiles = set()
         tile_seq = [tile for tile in self]
         random.seed(seed)
@@ -77,12 +54,11 @@ class QuantumGrid:
         i = 0
         while tile_seq:
             i += 1
-            tile = tile_seq.pop()
-            if tile.assigned:
-                continue
+            q_tile = tile_seq.pop()
             try:
-                dirty = tile.set_closest(img.getpixel(tile.pos))
-                dirty_tiles.update(dirty)
+                tile = strategy(q_tile)
+                grid[q_tile.y][q_tile.x] = tile
+                dirty_tiles.update(q_tile.get_dirty_neighbors())
                 while dirty_tiles:
                     dirty_tile = dirty_tiles.pop()
                     dirty_tile.update_edges()
@@ -90,10 +66,13 @@ class QuantumGrid:
             except InvalidLayoutError:
                 raise
             if not i % 10000:
-                print(f'i: {i}')
-        return self.create_grid()
+                print(f'solving: {(i * 100) // (self.size[0] * self.size[1])}%')
+        return grid
 
-    def _initialize_tiles(self):
+    def _initialize(self):
+        if not self.pool.is_complete():
+            missing = self.pool.get_missing_combinations()
+            print(f'WARNING: {len(missing)} edge combinations missing, invalid layout possible!')
         for tile in self:
             tile.initialize()
 

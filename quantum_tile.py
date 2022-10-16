@@ -9,11 +9,12 @@ class InvalidLayoutError(Exception):
 
 
 class QuantumTile:
-    def __init__(self, pos: tuple[int, int], pool: TilePool):
-        self.tile_pool = pool
+    def __init__(self, pos: tuple[int, int], pool: TilePool, value: tuple[int, int, int] = (0, 0, 0)):
+        self.pool = pool
         self.pos = pos
         self._edges = self.initialize()
         self.neighbors: typing.List[typing.Optional[QuantumTile]] = [None] * 4
+        self.value = value
 
     @property
     def x(self):
@@ -24,7 +25,7 @@ class QuantumTile:
         return self.pos[1]
 
     def initialize(self) -> list[set, ...]:
-        self._edges = [{e for e in edges} for edges in self.tile_pool.get_initial_edges()]
+        self._edges = [{e for e in edges} for edges in self.pool.get_initial_edges()]
         return self._edges
 
     @property
@@ -37,37 +38,35 @@ class QuantumTile:
 
     @property
     def valid_tile_count(self):
-        return len(self.tile_pool.filter_pool(self.edges))
+        return len(self.pool.filter_pool(self.edges))
 
     def set_neighbor(self, direction, neighbor: 'QuantumTile'):
         self.neighbors[direction] = neighbor
         opposite_direction = direction - 2
         neighbor.neighbors[opposite_direction] = self
 
-    def set_random(self):
-        tile = self.tile_pool.get_random(self.edges)
-        return self.set_tile(tile)
+    def set_random(self) -> Tile:
+        tile = self.pool.get_random(self.edges)
+        self.set_tile(tile)
+        return tile
 
-    def set_closest(self, value: tuple[int, int, int]):
-        tile = self.tile_pool.get_closest(self.edges, value)
-        return self.set_tile(tile)
+    def set_closest(self) -> Tile:
+        tile = self.pool.get_closest(self.edges, self.value)
+        self.set_tile(tile)
+        return tile
 
-    def set_tile(self, tile: Tile) -> set['QuantumTile']:
-        dirty = set()
+    def set_tile(self, tile: Tile) -> None:
         for d in Direction:
-            if self.neighbors[d] and self._edges[d] != {tile.edges[d]}:
-                dirty.add(self.neighbors[d])
             self._edges[d] = {tile.edges[d]}
-        return dirty
 
-    def get_dirty_neighbors(self) -> list['QuantumTile']:
-        dirty_neighbors = []
+    def get_dirty_neighbors(self) -> set['QuantumTile']:
+        dirty_neighbors = set()
         for d in Direction:
             neighbor = self.neighbors[d]
             if neighbor is None:
                 continue
-            if not self.neighbors[d].edges[d - 2] == self.edges[d]:
-                dirty_neighbors.append(self.neighbors[d])
+            if not self.neighbors[d].edges[Direction.opposite(d)] == self.edges[d]:
+                dirty_neighbors.add(self.neighbors[d])
         return dirty_neighbors
 
     def update_edges(self):
@@ -82,7 +81,7 @@ class QuantumTile:
 
     def _filter_edges(self):
         edges = self.edges
-        filtered_edges = self.tile_pool.filter_edges(self.edges)
+        filtered_edges = self.pool.filter_edges(self.edges)
         # print(f'filtered edges (pool): {filtered_edges}')
         for d in Direction:
             self._edges[d] = self._edges[d].intersection(filtered_edges[d])
