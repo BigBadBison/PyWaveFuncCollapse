@@ -1,4 +1,5 @@
 import enum
+import random
 import typing
 
 from PIL import Image
@@ -24,8 +25,8 @@ class Tile:
     def show(self):
         self.im.show()
 
-    def get_difference(self, value: tuple[int, int, int]) -> int:
-        return sum(abs(i - j) for i, j in zip(self.value, value))
+    def difference(self, value: tuple[int, int, int], noise=0) -> int:
+        return sum(abs(i + random.uniform(-noise, noise) - j) for i, j in zip(self.value, value))
 
     def __repr__(self):
         return f'<Tile {self.edges}>'

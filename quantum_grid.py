@@ -36,9 +36,9 @@ class QuantumGrid:
     def solve_random(self, seed=1) -> list[list[Tile]]:
         return self.solve(lambda tile: tile.set_random(), seed)
 
-    def solve_target(self, targets: list[list[tuple[int, int, int]]], seed=1) -> list[list[Tile]]:
+    def solve_target(self, targets: list[list[tuple[int, int, int]]], seed=1, noise=0) -> list[list[Tile]]:
         self.set_targets(targets)
-        return self.solve(lambda tile: tile.set_closest(), seed)
+        return self.solve(lambda tile: tile.set_closest(noise=noise), seed)
 
     def set_targets(self, targets: list[list[tuple[int, int, int]]]):
         for q_tile, targ in zip(self, targets):

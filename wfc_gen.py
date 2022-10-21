@@ -26,11 +26,11 @@ class WFCConverter:
         q_grid = QuantumGrid(self.pool, self.size)
         self.grid = q_grid.solve_random()
 
-    def solve_image(self, src) -> None:
+    def solve_image(self, src, noise=0) -> None:
         img = Image.open(src)
         img = self.resize(img)
         q_grid = QuantumGrid(self.pool, self.size)
-        self.grid = q_grid.solve_target(numpy.array(img.getdata()).tolist())
+        self.grid = q_grid.solve_target(numpy.array(img.getdata()).tolist(), noise=noise)
 
     def resize(self, img: Image.Image):
         ratio = min(self._max_tiles[0] / img.width, self._max_tiles[1] / img.height)
@@ -53,5 +53,5 @@ if __name__ == '__main__':
     max_size = (800, 533)
     wfc_converter = WFCConverter(max_size)
     wfc_converter.load_tiles(r'img/plotter_wfc_1_2_color.png', tile_pixels)
-    wfc_converter.solve_image(r'img/trees_bwr.jpg')
+    wfc_converter.solve_image(r'img/trees_bwr.jpg', noise=0)
     wfc_converter.show()

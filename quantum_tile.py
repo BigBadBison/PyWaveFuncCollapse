@@ -50,8 +50,8 @@ class QuantumTile:
         self.set_tile(tile)
         return tile
 
-    def set_closest(self) -> Tile:
-        tile = self.pool.get_closest(self.edges, self.value)
+    def set_closest(self, noise=0) -> Tile:
+        tile = self.pool.get_closest(self.edges, self.value, noise=noise)
         self.set_tile(tile)
         return tile
 
